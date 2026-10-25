@@ -1,0 +1,17 @@
+{
+    "name": "cloudtak-plugin-preplans",
+    "version": "0.1.0",
+    "description": "CloudTAK plugin: copy preplan GeoJSON files from a Preplan Library DataSync into any mission as fresh map objects",
+    "type": "module",
+    "private": true,
+    "license": "MIT",
+    "scripts": {
+        "test": "node --experimental-strip-types --test 'src/lib/*.test.ts'"
+    },
+    "peerDependencies": {
+        "@tabler/icons-vue": "*",
+        "@tak-ps/cloudtak": "*",
+        "@tak-ps/vue-tabler": "*",
+        "vue": "*"
+    }
+}

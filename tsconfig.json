@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "noEmit": true,
+        "composite": false,
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "target": "ESNext",
+        "lib": ["dom", "esnext", "webworker"],
+        "jsx": "preserve",
+        "jsxImportSource": "vue",
+        "strict": true,
+        "noImplicitThis": true,
+        "verbatimModuleSyntax": true,
+        "useDefineForClassFields": true,
+        "allowImportingTsExtensions": true,
+        "resolveJsonModule": true,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "skipLibCheck": true,
+        "types": []
+    },
+    "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.d.ts"]
+}
