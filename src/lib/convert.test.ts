@@ -4,7 +4,7 @@ import { isPreplanFile, preplanTitle, toMissionFeatures } from './convert.ts';
 
 const now = new Date('2026-10-24T12:00:00Z');
 
-test('plain GeoJSON gets CoT defaults, fresh ids, and keeps extra properties as metadata', () => {
+test('plain GeoJSON gets CoT defaults, fresh ids, and extra properties in remarks', () => {
     const { features, skipped } = toMissionFeatures({
         type: 'FeatureCollection',
         features: [{
@@ -22,7 +22,7 @@ test('plain GeoJSON gets CoT defaults, fresh ids, and keeps extra properties as 
     assert.equal(feat.properties.type, 'u-d-p');
     assert.equal(feat.properties.how, 'h-g-i-g-o');
     assert.equal(feat.properties.callsign, 'Staging');
-    assert.equal(feat.properties.remarks, 'Park here');
+    assert.equal(feat.properties.remarks, 'Park here\n\nagency: CCSO');
     assert.deepEqual(feat.properties.center, [-111.65, 35.19]);
     assert.equal(feat.properties.time, now.toISOString());
     assert.deepEqual(feat.properties.metadata, {
@@ -85,6 +85,29 @@ test('unnamed features fall back to the preplan name and position', () => {
         features: [{ type: 'Feature', properties: null, geometry: { type: 'Point', coordinates: [1, 2] } }],
     }, { preplanName: 'Riverside', now });
     assert.equal(features[0].properties.callsign, 'Riverside 1');
+});
+
+test('extra properties become remarks lines without a description; empty and simplestyle-only keys are left out', () => {
+    const { features } = toMissionFeatures({
+        type: 'FeatureCollection',
+        features: [{
+            type: 'Feature',
+            properties: {
+                name: 'LZ', radio: 'TAC 2', capacity: 2, contacts: ['Base', 'Air'], blank: '  ',
+                empty: {}, 'marker-symbol': 'heliport', 'marker-size': 'large',
+            },
+            geometry: { type: 'Point', coordinates: [1, 2] },
+        }],
+    }, { preplanName: 'Riverside', now });
+    assert.equal(features[0].properties.remarks, 'radio: TAC 2\ncapacity: 2\ncontacts: ["Base","Air"]');
+});
+
+test('features with nothing extra get no remarks', () => {
+    const { features } = toMissionFeatures({
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', properties: { name: 'Gate' }, geometry: { type: 'Point', coordinates: [1, 2] } }],
+    }, { preplanName: 'Riverside', now });
+    assert.ok(!('remarks' in features[0].properties));
 });
 
 test('non-GeoJSON input is rejected', () => {

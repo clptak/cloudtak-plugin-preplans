@@ -33,7 +33,8 @@ interface SourceFeature {
 
 /**
  * Top-level CoT feature properties (node-cot Feature.Properties). The API
- * strips anything else silently, so other keys are kept under `metadata`.
+ * strips anything else silently, and `metadata` does not survive the round
+ * trip through TAK Server either, so other keys are appended to remarks.
  */
 const COT_KEYS = new Set([
     'callsign', 'type', 'how', 'minzoom', 'maxzoom', 'rotate', 'range', 'bearing',
@@ -56,7 +57,15 @@ const DROP_KEYS = new Set([
     'start', 'stale',
 ]);
 
-const NUMERIC_KEYS = ['stroke-width', 'marker-opacity', 'stroke-opacity', 'fill-opacity'];
+/**
+ * Source keys already used for the callsign/remarks, or simplestyle keys CoT
+ * has no equivalent for - not worth repeating in remarks.
+ */
+const NOT_REMARKS = new Set([
+    'name', 'title', 'description', 'marker-size', 'marker-symbol', 'stroke-dasharray',
+]);
+
+const NUMERIC_KEYS =['stroke-width', 'marker-opacity', 'stroke-opacity', 'fill-opacity'];
 const OPACITY_KEYS = new Set(['marker-opacity', 'stroke-opacity', 'fill-opacity']);
 
 const DEFAULT_TYPE: Record<PreplanGeometry['type'], string> = {
@@ -142,6 +151,18 @@ function text(value: unknown): string | undefined {
     return trimmed.length ? trimmed : undefined;
 }
 
+/** "key: value" lines for the properties CoT would otherwise drop. */
+function remarkLines(extra: Record<string, unknown>): string[] {
+    const lines: string[] = [];
+    for (const [key, value] of Object.entries(extra)) {
+        if (NOT_REMARKS.has(key)) continue;
+        const shown = typeof value === 'object' ? JSON.stringify(value) : String(value);
+        if (!shown.trim().length || shown === '{}' || shown === '[]') continue;
+        lines.push(`${key}: ${shown}`);
+    }
+    return lines;
+}
+
 /**
  * Split the source properties into CoT properties and leftovers for
  * `metadata`, coercing numeric styles so one bad value can't fail the batch.
@@ -225,7 +246,9 @@ export function toMissionFeatures(input: unknown, opts: ConvertOptions): Convert
             ?? text(raw.name)
             ?? text(raw.title)
             ?? `${opts.preplanName} ${index + 1}`;
-        const remarks = text(props.remarks) ?? text(raw.description);
+        const remarks = [text(props.remarks) ?? text(raw.description), remarkLines(extra).join('\n')]
+            .filter(Boolean)
+            .join('\n\n');
         const sourceId = source.id ?? raw.id;
 
         parts.forEach((geometry, part) => {

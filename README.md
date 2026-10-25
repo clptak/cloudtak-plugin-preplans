@@ -5,7 +5,7 @@ A CloudTAK plugin that copies a preplan into a mission. The copy is made of fres
 ## How it works
 
 - **Library:** preplans are `.geojson` files attached to any DataSync whose name starts with `Preplan Library`. The library mission's TAK groups decide who can see which preplans.
-- **Load:** the plugin downloads the file and gives every feature a new UID. Multi-geometries are split, and properties CoT doesn't support are kept under `metadata`. The objects are submitted through `PUT /api/marti/missions/:guid/cot`, which confirms that every object reached the mission. They're then filed under a `Preplan - <name>` folder.
+- **Load:** the plugin downloads the file and gives every feature a new UID. Multi-geometries are split. From plain GeoJSON, `name` becomes the callsign, `description` becomes the remarks, and simplestyle styling carries over. TAK Server would drop any other property, so each one is added to the remarks as a `key: value` line. The objects are submitted through `PUT /api/marti/missions/:guid/cot`, which confirms that every object reached the mission. They're then filed under a `Preplan - <name>` folder.
 - **Where to use it:**
   - **Menu → Preplans** loads into the active mission.
   - Other plugins can call `window.__cloudtakPreplans`. Incident Manager's Create Mission uses it (`list()`, `load({ name, filename, hash, missionGuid, missionToken? })`).
