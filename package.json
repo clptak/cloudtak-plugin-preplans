@@ -4,7 +4,7 @@
     "description": "CloudTAK plugin: copy preplan GeoJSON files from a Preplan Library DataSync into any mission as fresh map objects",
     "type": "module",
     "private": true,
-    "license": "MIT",
+    "license": "AGPL-3.0",
     "scripts": {
         "test": "node --experimental-strip-types --test 'src/lib/*.test.ts'"
     },
