@@ -2,14 +2,23 @@
  * Copy a preplan into a mission: fresh CoTs through the confirmed bulk submit
  * (PUT /api/marti/missions/:guid/cot), filed under a "Preplan - <name>" folder.
  */
-import { server } from '../../../../src/std.ts';
+import { server, std } from '../../../../src/std.ts';
 import Subscription from '../../../../src/base/subscription.ts';
 import type { MissionLayer } from '../../../../src/types.ts';
 import { toMissionFeatures, type PreplanFeature } from './convert.ts';
 import { fetchPreplan, type Preplan } from './library.ts';
 
-/** Matches the feature cap on PUT /api/marti/missions/:guid/cot */
-const SUBMIT_BATCH = 100;
+/**
+ * Each submit builds a Data Package, uploads it and waits for TAK Server to
+ * confirm every CoT, which can outlast the `server` client's fixed 20s cap
+ * on a busy server. Smaller batches with their own longer limit keep each
+ * request well inside it. (The route itself accepts up to 100.)
+ */
+const SUBMIT_BATCH = 25;
+const SUBMIT_TIMEOUT_MS = 120_000;
+
+/** Filing only references existing UIDs, so it can go in the route's full 100. */
+const FILE_BATCH = 100;
 
 export interface LoadRequest {
     preplan: Pick<Preplan, 'name' | 'hash' | 'filename'>;
@@ -68,26 +77,35 @@ async function ensureFolder(guid: string, name: string, token?: string): Promise
 async function submit(guid: string, features: PreplanFeature[], token?: string): Promise<string[]> {
     const uids: string[] = [];
     for (let i = 0; i < features.length; i += SUBMIT_BATCH) {
-        const { data, error } = await server.PUT('/api/marti/missions/{:guid}/cot', {
-            params: { path: { ':guid': guid } },
-            headers: headers(token),
-            body: { features: features.slice(i, i + SUBMIT_BATCH) as never },
-        });
-        if (error || !data) {
-            const done = uids.length ? ` after ${uids.length} of ${features.length} objects` : '';
-            throw new Error(`Mission rejected the preplan${done}: ${error?.message ?? 'no response'}`);
+        try {
+            const res = await std(`/api/marti/missions/${encodeURIComponent(guid)}/cot`, {
+                method: 'PUT',
+                headers: headers(token),
+                body: { features: features.slice(i, i + SUBMIT_BATCH) },
+                timeout: SUBMIT_TIMEOUT_MS,
+            }) as { uids?: string[] };
+            if (!Array.isArray(res?.uids)) throw new Error('no confirmation from the server');
+            uids.push(...res.uids);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            const done = `${uids.length} of ${features.length} objects were confirmed in the mission`;
+            // A timeout only stops this browser waiting - the server may still
+            // finish the batch, so loading again could duplicate objects.
+            const note = /timed out/i.test(message)
+                ? ' The rest may still arrive; check the mission before loading this preplan again.'
+                : '';
+            throw new Error(`Preplan load stopped: ${message}. ${done}.${note}`, { cause: err });
         }
-        uids.push(...data.uids);
     }
     return uids;
 }
 
 async function file(guid: string, folderUid: string, uids: string[], token?: string): Promise<void> {
-    for (let i = 0; i < uids.length; i += SUBMIT_BATCH) {
+    for (let i = 0; i < uids.length; i += FILE_BATCH) {
         const { error } = await server.PUT('/api/marti/missions/{:guid}/layer/{:uid}/cot', {
             params: { path: { ':guid': guid, ':uid': folderUid } },
             headers: headers(token),
-            body: { uids: uids.slice(i, i + SUBMIT_BATCH) },
+            body: { uids: uids.slice(i, i + FILE_BATCH) },
         });
         if (error) throw new Error(error.message);
     }
