@@ -40,7 +40,12 @@ declare global {
 export function registerProvider(): void {
     window.__cloudtakPreplans = {
         async list() {
-            return (await listPreplans()).map((preplan) => ({
+            const { preplans, problems } = await listPreplans();
+            // Callers only take a list, so an unreadable library with nothing
+            // else to show becomes an error rather than a silent empty list.
+            if (!preplans.length && problems.length) throw new Error(problems.join('; '));
+            if (problems.length) console.warn('[preplans]', problems.join('; '));
+            return preplans.map((preplan) => ({
                 name: preplan.name,
                 filename: preplan.filename,
                 hash: preplan.hash,

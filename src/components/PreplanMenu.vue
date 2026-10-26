@@ -38,6 +38,15 @@
             />
 
             <TablerInlineAlert
+                v-for='problem in problems'
+                :key='problem'
+                class='my-2'
+                severity='warning'
+                title='Library not readable'
+                :description='problem'
+            />
+
+            <TablerInlineAlert
                 v-if='listError'
                 class='my-2'
                 severity='danger'
@@ -45,7 +54,7 @@
                 :description='listError'
             />
             <TablerNone
-                v-else-if='!loading && !preplans.length'
+                v-else-if='!loading && !preplans.length && !problems.length'
                 label='No preplans'
                 :create='false'
             />
@@ -105,6 +114,7 @@ const mapStore = useMapStore();
 const loading = ref(false);
 const listError = ref('');
 const preplans = ref<Preplan[]>([]);
+const problems = ref<string[]>([]);
 const loadingHash = ref<string | null>(null);
 const status = ref('');
 const statusError = ref(false);
@@ -121,7 +131,7 @@ async function refresh(): Promise<void> {
     loading.value = true;
     listError.value = '';
     try {
-        preplans.value = await listPreplans();
+        ({ preplans: preplans.value, problems: problems.value } = await listPreplans());
     } catch (err) {
         listError.value = err instanceof Error ? err.message : String(err);
     } finally {
